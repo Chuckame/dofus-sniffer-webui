@@ -1,0 +1,24 @@
+{
+  "name": "d2.sniffer",
+  "version": "0.0.1",
+  "description": "Sniffer pour le jeu Dofus",
+  "main": "main.js",
+  "dependencies": {
+    "@rblanchet/d2-protocol": "^2.61.7",
+    "dotenv": "^10.0.0",
+    "frida": "^15.1.3"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RBlanchet/D2.Sniffer.git"
+  },
+  "author": "RBlanchet",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RBlanchet/D2.Sniffer/issues"
+  },
+  "homepage": "https://github.com/RBlanchet/D2.Sniffer#readme"
+}
