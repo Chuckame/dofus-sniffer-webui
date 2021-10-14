@@ -1,53 +1,29 @@
 <template>
   <div id="app">
-    <json-viewer v-for="(event , k) in events.reverse()" :key="k" :value="event"/>
+    <router-view/>
   </div>
 </template>
 
 <script>
-import { io } from 'socket.io-client';
-import JsonViewer from 'vue-json-viewer';
-
 export default {
   name: 'App',
-  components: {JsonViewer},
-  data: () => ({
-    events: [],
-  }),
-  mounted: function() {
-    const socket = io('http://localhost:3000');
-
-    socket.on("connect", () => {
-      console.log('[Socket] Connecté');
-    });
-
-    socket.on("data", data => {
-      this.events.unshift(data);
-      console.log(data);
-    });
-  }
 }
 </script>
 
-<style>
+<style lang="scss">
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+body {
+  background: rgba(249, 249, 251, 1);
+  font-family: 'Montserrat', sans-serif;
+}
+
 #app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
-}
-
-#nav {
-  padding: 30px;
-}
-
-#nav a {
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-#nav a.router-link-exact-active {
-  color: #42b983;
+  max-width: 1130px;
+  display: block;
+  margin: auto;
 }
 </style>

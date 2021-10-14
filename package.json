@@ -4,7 +4,7 @@
   "description": "Sniffer pour le jeu Dofus",
   "main": "main.js",
   "dependencies": {
-    "@rblanchet/d2-protocol": "^2.61.7",
+    "@rblanchet/d2-protocol": "^2.61.8",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "frida": "^15.1.3",

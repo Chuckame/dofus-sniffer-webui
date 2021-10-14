@@ -2,7 +2,7 @@ require('dotenv').config();
 const frida = require('frida');
 const {spawn} = require('child_process');
 const { Socket } = require('dgram');
-const { Reader } = require('@rblanchet/d2-protocol');
+const { Reader, Protocol } = require('@rblanchet/d2-protocol');
 const { SocketServer } = require('socket.io');
 const express = require('express');
 const app = express();
@@ -98,11 +98,11 @@ const pushBufferToApp = (buffer, direction) => {
     dofusProcess.stdout.on('data', data => {
         console.log(`[Dofus] ${data}`);
     });
-    
+
     dofusProcess.stderr.on('data', data => {
         console.log(`[Dofus] Erreur : ${data}`);
     });
-    
+
     dofusProcess.on('exit', () => {
         console.log(`[Dofus] Application fermée.`);
     });
@@ -125,7 +125,7 @@ const connectClient = function(socket, host, port) {
             socket.destroy();
         }
         try {
-            console.log('Message from serveur');
+            console.log('[Dofus Frida] Message venant du serveur');
             pushBufferToApp(data, 'Serveur');
         } catch (e) {
             console.error(e);
@@ -151,7 +151,7 @@ snifferServer.on('connection', socket => {
         }
 
         try {
-            console.log('Message from client');
+            console.log('[Dofus Frida] Message venant du client');
             pushBufferToApp(data, 'Client');
         } catch (e) {
             console.error(e);
