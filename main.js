@@ -2,9 +2,19 @@ require('dotenv').config();
 const frida = require('frida');
 const {spawn} = require('child_process');
 const { Socket } = require('dgram');
-const { Server } = require('http');
 const { Reader } = require('@rblanchet/d2-protocol');
+const { SocketServer } = require('socket.io');
+const express = require('express');
+const app = express();
+const server = require('http').createServer(app);
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "http://localhost:8080",
+        methods: ["GET", "POST"],
+    },
+});
 const net = require('net');
+const path = require('path');
 const snifferServer = net.Server().listen('8000');
 
 const DOFUS_GAME_PATH = process.env.DOFUS_GAME_PATH;
@@ -18,6 +28,29 @@ const dofusProcess = spawn(`${DOFUS_GAME_PATH}\\Dofus.exe`);
 if (!dofusProcess.pid) {
     throw Error('[ERREUR] Impossible de trouver le PID de l\'application, êtes vous sur que Dofus est lancé ?');
 }
+
+
+io.on('connection', socket => {
+    console.log(socket);
+    socket.on('chat message', msg => {
+        io.emit('chat message', msg);
+    });
+});
+
+server.listen(3000);
+
+const pushBufferToApp = (buffer, direction) => {
+    const message = Reader.readBuffer(buffer);
+    if (message) {
+        const data = {
+            message: message.constructor.name,
+            id: message.getMessageId(),
+            content: message,
+            direction: direction,
+        };
+        io.emit('data', data);
+    }
+};
 
 (async () => {
     const session = await frida.attach(dofusProcess.pid);
@@ -93,9 +126,14 @@ const connectClient = function(socket, host, port) {
         }
         try {
             console.log('Message from serveur');
-            console.log(Reader.readBuffer(data));
+            pushBufferToApp(data, 'Serveur');
         } catch (e) {
+            console.error(e);
         }
+    });
+
+    socket['client'].on('error', function (err) {
+        // Nothing
     });
 };
 
@@ -114,8 +152,9 @@ snifferServer.on('connection', socket => {
 
         try {
             console.log('Message from client');
-            console.log(Reader.readBuffer(data));
+            pushBufferToApp(data, 'Client');
         } catch (e) {
+            console.error(e);
         }
     });
 
@@ -124,5 +163,9 @@ snifferServer.on('connection', socket => {
             socket['client'].destroy();
         } catch (e) {
         }
+    });
+
+    socket.on('error', function (err) {
+        // Nothing
     });
 });
