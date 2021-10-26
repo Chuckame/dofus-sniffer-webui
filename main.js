@@ -31,7 +31,6 @@ if (!dofusProcess.pid) {
 
 
 io.on('connection', socket => {
-    console.log(socket);
     socket.on('chat message', msg => {
         io.emit('chat message', msg);
     });
@@ -55,7 +54,6 @@ const pushBufferToApp = (buffer, direction) => {
 (async () => {
     const session = await frida.attach(dofusProcess.pid);
     session.detached.connect(message => {
-        console.log(message);
     });
 
     script = await session.createScript(`
@@ -68,8 +66,6 @@ const pushBufferToApp = (buffer, direction) => {
         var socket_recv = new NativeFunction(recv_p, 'int', ['int', 'pointer', 'int', 'int']);
         Interceptor.attach(connect_p, {
             onEnter: function (args) {
-                // int connect(int sockfd, const struct sockaddr *addr,
-                //             socklen_t addrlen);
                 this.sockfd = args[0];
                 var sockaddr_p = args[1];
                 this.port = 256 * sockaddr_p.add(2).readU8() + sockaddr_p.add(3).readU8();
@@ -81,7 +77,6 @@ const pushBufferToApp = (buffer, direction) => {
                 var newport = 8000;
                 sockaddr_p.add(2).writeByteArray([Math.floor(newport / 256), newport % 256]);
                 sockaddr_p.add(4).writeByteArray([127, 0, 0, 1]);
-                //send(this.addr+":"+this.port);
             },
             onLeave: function (retval) {
                 var connect_request = "CONNECT " + this.addr + ":" + this.port + " HTTP/1.0\\n\\n";
@@ -90,9 +85,6 @@ const pushBufferToApp = (buffer, direction) => {
             }
         })
     `);
-    script.message.connect(message => {
-        console.log(message);
-    });
     await script.load();
 
     dofusProcess.stdout.on('data', data => {
@@ -128,7 +120,6 @@ const connectClient = function(socket, host, port) {
             console.log('[Dofus Frida] Message venant du serveur');
             pushBufferToApp(data, 'Serveur');
         } catch (e) {
-            console.error(e);
         }
     });
 
@@ -154,7 +145,6 @@ snifferServer.on('connection', socket => {
             console.log('[Dofus Frida] Message venant du client');
             pushBufferToApp(data, 'Client');
         } catch (e) {
-            console.error(e);
         }
     });
 
