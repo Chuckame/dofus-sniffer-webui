@@ -41,7 +41,7 @@
       <template #header>
         <h4 class="not-margin">Détail du contenu</h4>
       </template>
-      <json-viewer :value="showDetailContent" copyables expand-depth="100"/>
+      <json-viewer :value="showDetailContent" expanded expand-depth=50 copyable/>
     </vs-dialog>
   </div>
 </template>
@@ -58,7 +58,6 @@ export default {
     isStarted: true,
     notification: null,
     showDetailContent: null,
-    toto: null,
   }),
   watch: {
     isStarted: function (value) {
@@ -76,12 +75,6 @@ export default {
         this.notification = null;
       }
     },
-    showDetailContent: function (value) {
-      console.log("showDetailContent", value)
-    },
-    toto: function (value) {
-      console.log("toto", value)
-    }
   },
   computed: {
     openDetailContent: {
