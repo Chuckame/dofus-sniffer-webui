@@ -13,22 +13,23 @@
     <div class="container">
       <vs-alert closable v-model="hideAlert">
         <template #title>Informations utiles</template>
-        <p style="text-align: left">Si vous voulez analyser le contenu d'un <b>message</b>, stoppez le flux d'analyse. Celui ci mettra en pause l'analyse sur le Client, il ne couppera en aucun cas la connexion.</p>
+        <p style="text-align: left">Si vous voulez analyser le contenu d'un <b>message</b>, stoppez le flux d'analyse.
+          Celui ci mettra en pause l'analyse sur le Client, il ne coupera en aucun cas la connexion.</p>
       </vs-alert>
       <div class="items" v-if="events.length">
-        <div 
-          class="item"
-          :class="{
-            'item__direction--client': event.direction === 'Client',
-            'item__direction--serveur': event.direction === 'Serveur'
+        <div
+            class="item"
+            :class="{
+            'item__direction--client': event.direction === 'SERVER_TO_CLIENT',
+            'item__direction--serveur': event.direction === 'CLIENT_TO_SERVER'
           }"
-          v-for="(event , k) in events" 
-          :key="k"
+            v-for="(event , k) in events"
+            :key="k"
         >
           <span class="item__number">#{{ events.length - k }}</span>
           <span class="item__direction">Direction: <p>{{ event.direction }}</p></span>
           <span class="item__id">ID: <p>{{ event.id }}</p></span>
-          <span class="item__message">Message: <a href="">{{ event.message }}</a></span>
+          <span class="item__message">Message: <p>{{ event.name.split('.').pop() }}</p></span>
           <vs-button class="item__show" flat @click="showDetailContent = event.content">Voir le contenu</vs-button>
         </div>
       </div>
@@ -40,13 +41,12 @@
       <template #header>
         <h4 class="not-margin">Détail du contenu</h4>
       </template>
-      <json-viewer :value="showDetailContent" expanded copyable preview-mode/>
+      <json-viewer :value="showDetailContent" copyables expand-depth="100"/>
     </vs-dialog>
   </div>
 </template>
 
 <script>
-import { io } from 'socket.io-client';
 import JsonViewer from 'vue-json-viewer';
 
 export default {
@@ -58,9 +58,10 @@ export default {
     isStarted: true,
     notification: null,
     showDetailContent: null,
+    toto: null,
   }),
   watch: {
-    isStarted: function(value) {
+    isStarted: function (value) {
       if (!value && !this.notification) {
         this.notification = this.$vs.notification({
           sticky: true,
@@ -70,34 +71,40 @@ export default {
           title: 'Ecoute en pause',
           text: 'L\'écoute est actuellement en pause, pour relancer recliquez sur la bouton dans la barre de navigation.'
         });
-      } else if(this.notification) {
+      } else if (this.notification) {
         this.notification.close();
         this.notification = null;
       }
+    },
+    showDetailContent: function (value) {
+      console.log("showDetailContent", value)
+    },
+    toto: function (value) {
+      console.log("toto", value)
     }
   },
   computed: {
     openDetailContent: {
-      get: function() {
+      get: function () {
         return !!this.showDetailContent;
       },
-      set: function() {
+      set: function () {
         this.showDetailContent = null;
       },
     },
   },
-  mounted: function() {
-    const socket = io('http://localhost:3000');
+  mounted: function () {
+    const socket = new WebSocket("ws://localhost:8088/messages");
 
-    socket.on("connect", () => {
+    socket.onopen = () => {
       console.log('[Socket] Connecté');
-    });
+    };
 
-    socket.on("data", data => {
+    socket.onmessage = event => {
       if (this.isStarted) {
-        this.events.unshift(data);
+        this.events.unshift(JSON.parse(event.data));
       }
-    });
+    }
   }
 }
 </script>
@@ -109,6 +116,7 @@ export default {
       font-size: 24px;
       margin-right: 5px;
     }
+
     a {
       font-size: 12px;
       position: relative;
@@ -123,55 +131,64 @@ export default {
   box-shadow: 0 2px 6px rgba(58, 57, 68, .2);
   background: #FFF;
   border-radius: 8px;
-  margin-top: 25px;
-  padding: 15px;
+  margin-top: 15px;
+  padding: 0px 15px;
   display: flex;
   align-items: center;
   border: 1px solid transparent;
   color: #9ca7b5;
   position: relative;
+
   &__number {
     color: #333;
     font-weight: 700;
     margin-right: 25px;
   }
+
   &__id {
     font-weight: 400;
     display: flex;
     align-items: center;
     margin-right: 50px;
+
     p {
       margin-left: 5px;
       color: #333333d9;
       font-weight: 600 !important;
     }
   }
+
   &__direction {
     font-weight: 400;
     display: flex;
     align-items: center;
     margin-right: 50px;
+
     p {
       margin-left: 5px;
       color: #333333d9;
       font-weight: 600 !important;
     }
+
     &--client {
       background: #f1f5f9ba;
     }
   }
+
   &__message {
     font-weight: 400;
     display: flex;
     align-items: center;
     margin-right: 50px;
-    a {
+
+    p {
       margin-left: 5px;
       font-weight: 600 !important;
       color: #1b64f2;
       text-decoration: none;
     }
   }
+
   &__show {
     position: absolute !important;
     right: 15px;
