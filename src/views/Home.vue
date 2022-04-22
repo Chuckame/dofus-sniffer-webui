@@ -26,11 +26,12 @@
             v-for="(event , k) in events"
             :key="k"
         >
-          <span class="item__number">#{{ events.length - k }}</span>
+          <span class="item__number">#{{ event.uid }}</span>
           <span class="item__direction">Direction: <p>{{ event.direction }}</p></span>
           <span class="item__id">ID: <p>{{ event.id }}</p></span>
           <span class="item__message">Message: <p>{{ event.name.split('.').pop() }}</p></span>
-          <vs-button class="item__show" flat @click="showDetailContent = event.content">Voir le contenu</vs-button>
+          <vs-button class="item__show" flat @click="showDetailContent = event.cleanedContent">Voir le contenu
+          </vs-button>
         </div>
       </div>
       <div class="no-content" v-else>
@@ -49,6 +50,33 @@
 <script>
 import JsonViewer from 'vue-json-viewer';
 
+function cleanTypes(data) {
+  if (!data) return data
+  // eslint-disable-next-line no-prototype-builtins
+  if (data.hasOwnProperty("_schema")) {
+    delete data._schema
+  }
+  if (data instanceof Array) {
+    for (const [index, value] of data.entries()) {
+      data[index] = cleanTypes(value)
+    }
+  } else if (data instanceof Object) {
+    for (const fieldName in data) {
+      let cleaned = cleanTypes(data[fieldName]);
+      if (fieldName === "_parent") {
+        delete data._parent
+        data = {
+          ...cleaned,
+          ...data,
+        }
+      } else {
+        data[fieldName] = cleaned
+      }
+    }
+  }
+  return data
+}
+
 export default {
   name: 'Home',
   components: {JsonViewer},
@@ -58,6 +86,7 @@ export default {
     isStarted: true,
     notification: null,
     showDetailContent: null,
+    nextUid: 1
   }),
   watch: {
     isStarted: function (value) {
@@ -95,7 +124,11 @@ export default {
 
     socket.onmessage = event => {
       if (this.isStarted) {
-        this.events.unshift(JSON.parse(event.data));
+        let data = JSON.parse(event.data);
+        data.uid = this.nextUid++
+        data.rawContent = data.content
+        data.cleanedContent = cleanTypes(data.content)
+        this.events.unshift(data);
       }
     }
   }
