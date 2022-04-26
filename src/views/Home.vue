@@ -11,46 +11,43 @@
       </template>
     </vs-navbar>
     <div class="container">
-      <vs-alert closable v-model="hideAlert">
-        <template #title>Informations utiles</template>
-        <p style="text-align: left">Si vous voulez analyser le contenu d'un <b>message</b>, stoppez le flux d'analyse.
-          Celui ci mettra en pause l'analyse sur le Client, il ne coupera en aucun cas la connexion.</p>
-      </vs-alert>
-      <div class="items" v-if="events.length">
-        <div
-            class="item"
-            :class="{
+      <vs-input class="radio-group-full-width" v-model="jsonPathLiveFilter" label-placeholder="Search events..."/>
+      <div class="row">
+        <div class="items column" v-if="filteredEvents.length">
+          <div
+              class="item"
+              :class="{
             'item__direction--client': event.direction === 'SERVER_TO_CLIENT',
             'item__direction--serveur': event.direction === 'CLIENT_TO_SERVER'
           }"
-            v-for="(event , k) in events"
-            :key="k"
-        >
-          <span class="item__number">#{{ event.uid }}</span>
-          <span class="item__direction">Direction: <p>{{ event.direction }}</p></span>
-          <span class="item__id">ID: <p>{{ event.id }}</p></span>
-          <span class="item__message">Message: <p>{{ event.name.split('.').pop() }}</p></span>
-          <vs-button class="item__show" flat @click="showDetailContent = event.cleanedContent">Voir le contenu
-          </vs-button>
+              v-for="(event , k) in filteredEvents"
+              :key="k"
+          >
+            <span class="item__number">#{{ event.uid }}</span>
+            <span class="item__direction">Direction: <p>{{
+                event.direction === 'SERVER_TO_CLIENT' ? 'S -> C' : 'C -> S'
+              }}</p></span>
+            <span class="item__id">ID: <p></p></span>
+            <span class="item__message">Message: <p>{{ event.name.split('.').pop() }} </p> ({{ event.id }})</span>
+            <vs-button class="item__show" flat @click="selectEvent(event)">🔎</vs-button>
+          </div>
+        </div>
+        <div class="no-content column" v-else>
+          Nothing received for the moment
+        </div>
+        <div class="column">
+          <json-viewer :value="jsonToDisplay" expanded copyable/>
         </div>
       </div>
-      <div class="no-content" v-else>
-        Si vôtre Dofus est fonctionnel, les messages ne devrait pas tarder à arriver !
-      </div>
     </div>
-    <vs-dialog v-model="openDetailContent">
-      <template #header>
-        <h4 class="not-margin">Détail du contenu</h4>
-      </template>
-      <json-viewer :value="showDetailContent" expanded expand-depth=50 copyable/>
-    </vs-dialog>
   </div>
 </template>
 
 <script>
 import JsonViewer from 'vue-json-viewer';
+import {JSONPath} from 'jsonpath-plus'
 
-function cleanTypes(data) {
+function getDisplayableContent(data) {
   if (!data) return data
   // eslint-disable-next-line no-prototype-builtins
   if (data.hasOwnProperty("_schema")) {
@@ -58,11 +55,11 @@ function cleanTypes(data) {
   }
   if (data instanceof Array) {
     for (const [index, value] of data.entries()) {
-      data[index] = cleanTypes(value)
+      data[index] = getDisplayableContent(value)
     }
   } else if (data instanceof Object) {
     for (const fieldName in data) {
-      let cleaned = cleanTypes(data[fieldName]);
+      let cleaned = getDisplayableContent(data[fieldName]);
       if (fieldName === "_parent") {
         delete data._parent
         data = {
@@ -81,13 +78,66 @@ export default {
   name: 'Home',
   components: {JsonViewer},
   data: () => ({
-    events: [],
+    allEvents: [
+    /*  {
+        direction: 'SERVER_TO_CLIENT',
+        name: 'toto',
+        id: 111,
+        uid: 1,
+        content: {
+          f1: "yolo",
+          f2: 123
+        },
+      },
+      {
+        direction: 'CLIENT_TO_SERVER',
+        name: 'tata',
+        id: 222,
+        uid: 2,
+        content: {
+          f1: "yolo",
+          f2: 444
+        },
+      }*/
+    ],
+    filteredEvents: [],
+    filterExamples: [
+        "$[?(@.name=='toto')]"
+    ],
     hideAlert: true,
     isStarted: true,
     notification: null,
-    showDetailContent: null,
-    nextUid: 1
+    jsonToDisplay: {},
+    nextEventUid: 1,
+    jsonPathLiveFilter: ""
   }),
+  methods: {
+    selectEvent: function (event) {
+      this.jsonToDisplay = getDisplayableContent(event.content)
+    },
+    updateFilteredEvents: function () {
+      this.filteredEvents = this.allEvents.filter(this.isFiltered)
+    },
+    isFiltered: function (event) {
+      try {
+        let result = JSONPath({
+          json: [JSON.parse(JSON.stringify(event))],
+          path: this.jsonPathLiveFilter == null || this.jsonPathLiveFilter === "" ? "$" : this.jsonPathLiveFilter,
+          wrap: false
+        });
+        return result !== undefined
+      } catch (e) {
+        return true
+      }
+    },
+    onNewMessage: function (event) {
+      event.uid = this.nextEventUid++
+      this.allEvents.unshift(event)
+      if (this.isFiltered(event)) {
+        this.filteredEvents.unshift(event)
+      }
+    }
+  },
   watch: {
     isStarted: function (value) {
       if (!value && !this.notification) {
@@ -104,33 +154,27 @@ export default {
         this.notification = null;
       }
     },
-  },
-  computed: {
-    openDetailContent: {
-      get: function () {
-        return !!this.showDetailContent;
-      },
-      set: function () {
-        this.showDetailContent = null;
-      },
+    jsonPathLiveFilter: function () {
+      this.updateFilteredEvents()
     },
   },
   mounted: function () {
+    this.jsonPathLiveFilter = "$"
     const socket = new WebSocket("ws://localhost:8088/messages");
 
     socket.onopen = () => {
       console.log('[Socket] Connecté');
     };
 
-    socket.onmessage = event => {
-      if (this.isStarted) {
-        let data = JSON.parse(event.data);
-        data.uid = this.nextUid++
-        data.rawContent = data.content
-        data.cleanedContent = cleanTypes(data.content)
-        this.events.unshift(data);
-      }
-    }
+    socket.onerror = (e) => {
+      console.log('[Socket] error', e);
+    };
+
+    socket.onclose = (e) => {
+      console.log('[Socket] closed', e);
+    };
+
+    socket.onmessage = event => this.onNewMessage(JSON.parse(event.data))
   }
 }
 </script>
@@ -242,5 +286,21 @@ export default {
 
 .container {
   margin-top: 100px;
+}
+
+.row {
+  display: flex;
+}
+
+.column {
+  flex: 50%;
+}
+
+.radio-group-full-width > input {
+  width: 100%
+}
+
+.radio-group-full-width > label {
+  width: 100%
 }
 </style>
